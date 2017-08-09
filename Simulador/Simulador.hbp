@@ -1,0 +1,9 @@
+-oSimulador
+
+*.prg
+
+# Executar apos a compilação
+-run
+
+-info
+-prgflag=-a -v -n -w3 -p -DVERSAO_DIG -DBCC

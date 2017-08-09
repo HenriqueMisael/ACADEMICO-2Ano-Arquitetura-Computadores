@@ -1,0 +1,78 @@
+#line 200 "C:\Desenvolvimento\FiveWin\hb32\include\HbClass.ch"
+DECLARE HBClass  New( cName AS STRING, OPTIONAL SuperParams ) AS CLASS HBClass  Create() AS OBJECT  Instance() AS OBJECT  AddClsMethod( cName AS STRING, @MethodName(), nScope AS NUMERIC, n2 AS NUMERIC, n3 AS NUMERIC )  AddMultiClsData( cType AS STRING, uVal, nScope AS NUMERIC, aDatas AS ARRAY OF STRING )  AddMultiData( cType AS STRING, uVal, nScope AS NUMERIC, aDatas AS ARRAY OF STRING, x AS LOGICAL, lPer AS LOGICAL )  AddMethod( cName AS STRING, @MethodName(), nScope AS NUMERIC )  AddInLine( cName AS STRING, bBlock AS CODEBLOCK, nScope AS NUMERIC )  AddVirtual( cName AS STRING )
+#line 8 "Memory.prg"
+_HB_CLASS MainMemory ; function MainMemory ( ... ) ; STATIC s_oClass ; LOCAL nScope, oClass, oInstance ; IF s_oClass == NIL .AND. __clsLockDef( @s_oClass ) ; BEGIN SEQUENCE ; nScope := 1 ; ( ( nScope ) ) ; oClass := iif( .F.,, HBClass():new( "MainMemory", iif( .F., { }, { @HBObject() } ), @MainMemory() ) ) ;
+
+   nScope := 1 ; ( ( nScope ) )
+      _HB_MEMBER new( nDataStart, nInstructionsStart, nSize); oClass:AddMethod( "new", @MainMemory_new(), nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER getDataHash(); oClass:AddInline( "getDataHash", {|Self | ( ( Self ) ), ::hData }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER getInstructionsHash(); oClass:AddInline( "getInstructionsHash", {|Self | ( ( Self ) ), ::hInstructions }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER getFirstInstruction(); oClass:AddInline( "getFirstInstruction", {|Self | ( ( Self ) ), ::nInstructionsStart }, nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER loadFromFile( cFile); oClass:AddMethod( "loadFromFile", @MainMemory_loadFromFile(), nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+      _HB_MEMBER loadValue( oCpu); oClass:AddMethod( "loadValue", @MainMemory_loadValue(), nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+
+   nScope := 4 ; ( ( nScope ) )
+      _HB_MEMBER allocate( hHash, nStart, nEnd); oClass:AddMethod( "allocate", @MainMemory_allocate(), nScope + iif( .F., 8, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ) )
+; _HB_MEMBER { hData } ; oClass:AddMultiData(, Hb_Hash(), nScope + iif( .F., 16, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ), {"hData"}, .F. )
+; _HB_MEMBER { hInstructions } ; oClass:AddMultiData(, Hb_Hash(), nScope + iif( .F., 16, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ), {"hInstructions"}, .F. )
+; _HB_MEMBER { nInstructionsStart } ; oClass:AddMultiData(, 0, nScope + iif( .F., 16, 0 ) + iif( .F., 256, 0 ) + iif( .F., 2048, 0 ), {"nInstructionsStart"}, .F. )
+
+oClass:Create() ; ; ALWAYS ; __clsUnlockDef( @s_oClass, oClass ) ; end ; oInstance := oClass:Instance() ; IF __objHasMsg( oInstance, "InitClass" ) ; oInstance:InitClass( ... ) ; END ; RETURN oInstance ; END ; RETURN s_oClass:Instance() AS CLASS MainMemory ;
+
+
+
+static FUNCTION MainMemory_new( nDataStart, nInstructionsStart, nSize ) ; local Self AS CLASS MainMemory := QSelf() AS CLASS MainMemory
+
+   IF nDataStart < nInstructionsStart
+      ::allocate( ::hData, nDataStart, nInstructionsStart-1, 0 )
+      ::allocate( ::hInstructions, nInstructionsStart, nSize, "" )
+   ELSE
+      ::allocate( ::hInstructions, nInstructionsStart, nDataStart-1, "" )
+      ::allocate( ::hData, nDataStart, nSize, 0 )
+   ENDIF
+
+   ::nInstructionsStart := nInstructionsStart
+
+RETURN Self
+
+static FUNCTION MainMemory_loadValue( oCpu ) ; local Self AS CLASS MainMemory := QSelf() AS CLASS MainMemory
+
+   SWITCH oCpu:getRegisters()[ "MF" ]
+      CASE 0
+         oCpu:getRegisters[ "MBR" ] := ::hData[ oCpu:getRegisters[ "MAR" ] ]
+         EXIT
+      CASE 1
+         ::hData[ oCpu:getRegisters[ "MAR" ] ] := oCpu:getRegisters[ "MBR" ]
+         EXIT
+   END
+
+RETURN Self
+
+static FUNCTION MainMemory_loadFromFile( cFile ) ; local Self AS CLASS MainMemory := QSelf() AS CLASS MainMemory
+
+   LOCAL aInstructions
+   LOCAL nLine
+
+   aInstructions := Hb_ATokens( MemoRead( cFile ), Chr( 13 ) + Chr( 10 ) )
+
+   FOR nLine := 1 to Len( aInstructions )
+      aInstructions[ nLine ] := HB_ATokens( aInstructions[ nLine ], "//" )[1]
+      ::hInstructions[ nLine-1+::nInstructionsStart ] := aInstructions[ nLine ]
+      IF nLine > Len( ::hInstructions )
+         EXIT
+      ENDIF
+   NEXT
+
+RETURN Self
+
+; static FUNCTION MainMemory_allocate( hHash, nStart, nEnd, cEmpty ) ; local Self AS CLASS MainMemory := QSelf() AS CLASS MainMemory
+
+   LOCAL nAddress
+
+
+
+   FOR nAddress := nStart TO nEnd
+      Hb_HSet( hHash, nAddress, cEmpty )
+   NEXT
+
+RETURN Self
